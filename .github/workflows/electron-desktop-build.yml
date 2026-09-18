@@ -1,0 +1,93 @@
+name: Build Electron Desktop App
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/web/**"
+      - "apps/electron/**"
+      - "rust/**"
+      - ".github/workflows/electron-desktop-build.yml"
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build Windows Electron App
+    runs-on: windows-latest
+
+    env:
+      DATABASE_URL: "postgresql://opencut:opencut@localhost:5432/opencut"
+      BETTER_AUTH_SECRET: "offline_better_auth_secret_desktop"
+      NEXT_PUBLIC_SITE_URL: "http://localhost:3000"
+      UPSTASH_REDIS_REST_URL: "https://placeholder.example.com"
+      UPSTASH_REDIS_REST_TOKEN: "offline_token"
+      NEXT_PUBLIC_MARBLE_API_URL: "https://api.marblecms.com"
+      MARBLE_WORKSPACE_KEY: "offline_workspace_key"
+      FREESOUND_CLIENT_ID: "offline_freesound_id"
+      FREESOUND_API_KEY: "offline_freesound_key"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Install wasm-pack
+        uses: jetli/wasm-pack-action@v0.4.0
+        with:
+          version: latest
+
+      - name: Build Rust WASM
+        run: wasm-pack build rust/wasm --target bundler --out-dir pkg
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.18
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Web dependencies
+        working-directory: apps/web
+        run: bun install
+
+      - name: Build Next.js Standalone
+        working-directory: apps/web
+        run: bun run build
+
+      - name: Prepare Electron standalone bundle
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path "apps/electron/standalone" -Force
+          Copy-Item -Recurse -Force "apps/web/.next/standalone/*" "apps/electron/standalone/"
+
+          # Copy static files to both possible resolution locations
+          New-Item -ItemType Directory -Path "apps/electron/standalone/.next/static" -Force
+          Copy-Item -Recurse -Force "apps/web/.next/static/*" "apps/electron/standalone/.next/static/"
+          New-Item -ItemType Directory -Path "apps/electron/standalone/apps/web/.next/static" -Force
+          Copy-Item -Recurse -Force "apps/web/.next/static/*" "apps/electron/standalone/apps/web/.next/static/"
+
+          # Copy public files to both possible resolution locations
+          New-Item -ItemType Directory -Path "apps/electron/standalone/public" -Force
+          Copy-Item -Recurse -Force "apps/web/public/*" "apps/electron/standalone/public/"
+          New-Item -ItemType Directory -Path "apps/electron/standalone/apps/web/public" -Force
+          Copy-Item -Recurse -Force "apps/web/public/*" "apps/electron/standalone/apps/web/public/"
+
+      - name: Install Electron dependencies & Build Windows Exe
+        working-directory: apps/electron
+        run: |
+          npm install
+          npm run dist
+
+      - name: Upload Windows Executable Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: opencut-desktop-electron-windows
+          path: apps/electron/dist/*.exe
+          if-no-files-found: error

@@ -1,0 +1,50 @@
+{
+  "name": "opencut-desktop-app",
+  "version": "0.1.0",
+  "description": "OpenCut Video Editor Desktop",
+  "main": "main.js",
+  "author": "OpenCut Team",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder --win"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "electron": "^34.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.opencut.desktop",
+    "productName": "OpenCut",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "standalone/**/*"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": false
+    }
+  }
+}
