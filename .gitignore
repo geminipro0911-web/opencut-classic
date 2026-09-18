@@ -26,3 +26,4 @@ target/
 .cargo-tools/
 
 rust-migration-notes.md
+*.exe

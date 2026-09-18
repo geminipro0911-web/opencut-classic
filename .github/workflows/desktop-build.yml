@@ -1,0 +1,66 @@
+name: Build Desktop App
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/desktop/**"
+      - "rust/**"
+      - "Cargo.*"
+      - ".github/workflows/desktop-build.yml"
+  pull_request:
+    branches: [main]
+  workflow_dispatch: # Cho phép kích hoạt thủ công từ giao diện GitHub (nút "Run workflow")
+
+jobs:
+  build:
+    name: Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            artifact_name: opencut-desktop-windows-x64
+            binary_path: target/release/opencut.exe
+          - os: ubuntu-latest
+            artifact_name: opencut-desktop-linux-x64
+            binary_path: target/release/opencut
+          - os: macos-latest
+            artifact_name: opencut-desktop-macos
+            binary_path: target/release/opencut
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Rust Toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Linux Native Dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libasound2-dev libfontconfig-dev libglib2.0-dev libssl-dev libva-dev libvulkan1 libwayland-dev libx11-xcb-dev libxkbcommon-x11-dev libzstd-dev libsqlite3-dev
+
+      - name: Cache Cargo Dependencies & Build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-desktop-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-desktop-
+
+      - name: Build Desktop (Release)
+        run: cargo build -p opencut-desktop --release
+
+      - name: Upload Executable Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: ${{ matrix.binary_path }}
+          if-no-files-found: error
