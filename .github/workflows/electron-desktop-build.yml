@@ -82,8 +82,8 @@ jobs:
       - name: Install Electron dependencies & Build Windows Exe
         working-directory: apps/electron
         run: |
-          npm install
-          npm run dist
+          npm install --no-workspaces
+          npx electron-builder --win
 
       - name: Upload Windows Executable Artifacts
         uses: actions/upload-artifact@v4

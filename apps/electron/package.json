@@ -12,12 +12,13 @@
   },
   "dependencies": {},
   "devDependencies": {
-    "electron": "^34.2.0",
-    "electron-builder": "^25.1.8"
+    "electron": "34.2.0",
+    "electron-builder": "25.1.8"
   },
   "build": {
     "appId": "com.opencut.desktop",
     "productName": "OpenCut",
+    "electronVersion": "34.2.0",
     "directories": {
       "output": "dist"
     },
