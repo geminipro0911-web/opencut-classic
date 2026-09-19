@@ -7,15 +7,16 @@ const fs = require('fs');
 let serverProcess = null;
 let mainWindow = null;
 const PORT = 34567;
+let serverLogs = '';
 
 function findServerScript() {
   const candidates = [
     path.join(__dirname, 'standalone', 'apps', 'web', 'server.js'),
     path.join(__dirname, 'standalone', 'server.js'),
+    path.join(process.resourcesPath, 'app', 'standalone', 'apps', 'web', 'server.js'),
+    path.join(process.resourcesPath, 'app', 'standalone', 'server.js'),
     path.join(process.resourcesPath, 'standalone', 'apps', 'web', 'server.js'),
     path.join(process.resourcesPath, 'standalone', 'server.js'),
-    path.join(process.resourcesPath, 'app.asar.unpacked', 'standalone', 'apps', 'web', 'server.js'),
-    path.join(process.resourcesPath, 'app.asar.unpacked', 'standalone', 'server.js'),
   ];
 
   for (const p of candidates) {
@@ -33,7 +34,7 @@ function startServer() {
   if (!serverPath) {
     dialog.showErrorBox(
       'Khởi động thất bại',
-      'Không tìm thấy file server.js nội bộ trong bản đóng gói.'
+      'Không tìm thấy file server.js nội bộ trong bản đóng gói.\nĐã kiểm tra tại: ' + __dirname
     );
     app.quit();
     return;
@@ -41,20 +42,38 @@ function startServer() {
 
   const serverDir = path.dirname(serverPath);
 
+  // Quan trọng: Bắt buộc phải có ELECTRON_RUN_AS_NODE = '1' để Electron chạy file script như Node.js
   serverProcess = fork(serverPath, [], {
     cwd: serverDir,
     env: {
       ...process.env,
+      ELECTRON_RUN_AS_NODE: '1',
       PORT: PORT.toString(),
       HOSTNAME: '127.0.0.1',
       NODE_ENV: 'production',
       NEXT_TELEMETRY_DISABLED: '1',
     },
-    stdio: 'ignore',
+    stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
   });
 
+  if (serverProcess.stdout) {
+    serverProcess.stdout.on('data', (d) => {
+      serverLogs += d.toString();
+    });
+  }
+
+  if (serverProcess.stderr) {
+    serverProcess.stderr.on('data', (d) => {
+      serverLogs += d.toString();
+    });
+  }
+
   serverProcess.on('error', (err) => {
-    console.error('Server process error:', err);
+    serverLogs += '\nServer Process Error: ' + err.message;
+  });
+
+  serverProcess.on('exit', (code, signal) => {
+    serverLogs += `\nServer Process exited unexpectedly with code ${code}, signal ${signal}`;
   });
 }
 
@@ -66,10 +85,13 @@ function waitForServer(url, maxRetries = 60, interval = 500) {
         resolve();
       });
 
-      req.on('error', () => {
+      req.on('error', (err) => {
         retries++;
         if (retries >= maxRetries) {
-          reject(new Error('Máy chủ nội bộ không phản hồi sau thời gian chờ.'));
+          reject(new Error(
+            'Máy chủ nội bộ không phản hồi sau thời gian chờ.\n\nChi tiết log server:\n' +
+            (serverLogs || 'Không có log từ tiến trình server.')
+          ));
         } else {
           setTimeout(check, interval);
         }

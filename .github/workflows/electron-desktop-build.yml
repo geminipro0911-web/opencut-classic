@@ -79,6 +79,9 @@ jobs:
           New-Item -ItemType Directory -Path "apps/electron/standalone/apps/web/public" -Force
           Copy-Item -Recurse -Force "apps/web/public/*" "apps/electron/standalone/apps/web/public/"
 
+          # Copy package.json
+          Copy-Item -Force "apps/web/package.json" "apps/electron/standalone/apps/web/package.json" -ErrorAction SilentlyContinue
+
       - name: Install Electron dependencies & Build Windows Exe
         working-directory: apps/electron
         run: |
