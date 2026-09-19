@@ -81,6 +81,23 @@ jobs:
 
           # Copy package.json
           Copy-Item -Force "apps/web/package.json" "apps/electron/standalone/apps/web/package.json" -ErrorAction SilentlyContinue
+          Copy-Item -Force "apps/web/package.json" "apps/electron/standalone/package.json" -ErrorAction SilentlyContinue
+
+          # Check for next module and provide fallback if missing
+          $nextInRoot = Test-Path "apps/electron/standalone/node_modules/next"
+          $nextInWeb = Test-Path "apps/electron/standalone/apps/web/node_modules/next"
+          Write-Host "Checking Next.js in standalone:"
+          Write-Host "  standalone/node_modules/next: $nextInRoot"
+          Write-Host "  standalone/apps/web/node_modules/next: $nextInWeb"
+
+          if (-not $nextInRoot -and -not $nextInWeb) {
+            Write-Host "Next.js was not traced into standalone node_modules! Copying node_modules from apps/web..."
+            New-Item -ItemType Directory -Path "apps/electron/standalone/node_modules" -Force
+            Copy-Item -Recurse -Force "apps/web/node_modules/*" "apps/electron/standalone/node_modules/"
+          }
+
+          Write-Host "Standalone preparation complete. Top-level items:"
+          Get-ChildItem -Path "apps/electron/standalone" | Select-Object Name, Mode
 
       - name: Install Electron dependencies & Build Windows Exe
         working-directory: apps/electron

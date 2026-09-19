@@ -1,3 +1,4 @@
+import path from "node:path";
 import type { NextConfig } from "next";
 import { withBotId } from "botid/next/config";
 import { withContentCollections } from "@content-collections/next";
@@ -9,12 +10,10 @@ const nextConfig: NextConfig = {
 	typescript: {
 		ignoreBuildErrors: true,
 	},
-	eslint: {
-		ignoreDuringBuilds: true,
-	},
 	reactStrictMode: true,
 	productionBrowserSourceMaps: true,
 	output: "standalone",
+	outputFileTracingRoot: path.join(__dirname, "../../"),
 	images: {
 		remotePatterns: [
 			{

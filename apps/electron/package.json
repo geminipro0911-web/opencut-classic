@@ -24,8 +24,13 @@
       "output": "dist"
     },
     "files": [
-      "main.js",
-      "standalone/**/*"
+      "main.js"
+    ],
+    "extraResources": [
+      {
+        "from": "standalone",
+        "to": "standalone"
+      }
     ],
     "win": {
       "target": [

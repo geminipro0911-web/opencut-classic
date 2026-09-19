@@ -11,12 +11,12 @@ let serverLogs = '';
 
 function findServerScript() {
   const candidates = [
-    path.join(__dirname, 'standalone', 'apps', 'web', 'server.js'),
-    path.join(__dirname, 'standalone', 'server.js'),
-    path.join(process.resourcesPath, 'app', 'standalone', 'apps', 'web', 'server.js'),
-    path.join(process.resourcesPath, 'app', 'standalone', 'server.js'),
     path.join(process.resourcesPath, 'standalone', 'apps', 'web', 'server.js'),
     path.join(process.resourcesPath, 'standalone', 'server.js'),
+    path.join(process.resourcesPath, 'app', 'standalone', 'apps', 'web', 'server.js'),
+    path.join(process.resourcesPath, 'app', 'standalone', 'server.js'),
+    path.join(__dirname, 'standalone', 'apps', 'web', 'server.js'),
+    path.join(__dirname, 'standalone', 'server.js'),
   ];
 
   for (const p of candidates) {
@@ -34,7 +34,9 @@ function startServer() {
   if (!serverPath) {
     dialog.showErrorBox(
       'Khởi động thất bại',
-      'Không tìm thấy file server.js nội bộ trong bản đóng gói.\nĐã kiểm tra tại: ' + __dirname
+      'Không tìm thấy file server.js nội bộ trong bản đóng gói.\n' +
+      '__dirname: ' + __dirname + '\n' +
+      'resourcesPath: ' + process.resourcesPath
     );
     app.quit();
     return;
@@ -42,12 +44,37 @@ function startServer() {
 
   const serverDir = path.dirname(serverPath);
 
+  // Xây dựng danh sách đường dẫn node_modules tiềm năng
+  const nodePaths = [
+    path.join(serverDir, 'node_modules'),
+    path.join(serverDir, '..', 'node_modules'),
+    path.join(serverDir, '..', '..', 'node_modules'),
+    path.join(process.resourcesPath, 'standalone', 'node_modules'),
+    path.join(process.resourcesPath, 'standalone', 'apps', 'web', 'node_modules'),
+    path.join(process.resourcesPath, 'app', 'standalone', 'node_modules'),
+    path.join(process.resourcesPath, 'app', 'standalone', 'apps', 'web', 'node_modules'),
+    path.join(__dirname, 'standalone', 'node_modules'),
+    path.join(__dirname, 'standalone', 'apps', 'web', 'node_modules'),
+  ].filter(p => {
+    try {
+      return fs.existsSync(p);
+    } catch (e) {
+      return false;
+    }
+  });
+
+  const existingNodePath = process.env.NODE_PATH || '';
+  const finalNodePath = [...nodePaths, existingNodePath].filter(Boolean).join(path.delimiter);
+
+  serverLogs += `[Server Init]\nScript: ${serverPath}\nDir: ${serverDir}\nNODE_PATH: ${finalNodePath}\n\n`;
+
   // Quan trọng: Bắt buộc phải có ELECTRON_RUN_AS_NODE = '1' để Electron chạy file script như Node.js
   serverProcess = fork(serverPath, [], {
     cwd: serverDir,
     env: {
       ...process.env,
       ELECTRON_RUN_AS_NODE: '1',
+      NODE_PATH: finalNodePath,
       PORT: PORT.toString(),
       HOSTNAME: '127.0.0.1',
       NODE_ENV: 'production',
